@@ -38,6 +38,14 @@ const copy = {
     sub: "Royal blue. Halki baarish. Aur tum.",
     button: "Aage chalo",
   },
+  cake: {
+    kicker: "Ek wish",
+    title: "Wish maango",
+    hint: "Aankhein band karo, wish maango. Phir har mombatti pe tap karo.",
+    done: "Tumhari har wish poori ho.",
+    candles: 3,
+    button: "Aage chalo",
+  },
   secret: {
     prompt: "Sirf tumhare liye",
     next: "Aage",
@@ -66,7 +74,7 @@ const copy = {
   },
 };
 
-const scenes = ["gate", "rain", "poori", "papa", "gift", "secret", "letter"];
+const scenes = ["gate", "rain", "poori", "papa", "gift", "cake", "secret", "letter"];
 const letters = ["A", "P", "P", "Y"];
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -91,6 +99,15 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text) node.textContent = text;
   return node;
+}
+
+function buzz(ms) {
+  if (!navigator.vibrate) return;
+  try {
+    navigator.vibrate(ms);
+  } catch {
+    // Some browsers block vibration without a user gesture.
+  }
 }
 
 function button(label, onClick) {
@@ -240,6 +257,7 @@ const builders = {
         if (!alive) return;
         const rect = drop.getBoundingClientRect();
         rain.burst(rect.left + rect.width / 2, rect.top + rect.height / 2, 14);
+        buzz(12);
         const playWidth = play.clientWidth || 300;
         const targetLeft = Math.max(24, Math.min(76, ((x + 35) / playWidth) * 100));
         walkLane.style.left = `${targetLeft}%`;
@@ -378,9 +396,10 @@ const builders = {
       title.remove();
       const rect = gift.getBoundingClientRect();
       rain.burst(rect.left + rect.width / 2, rect.top + rect.height * 0.4, 26);
+      buzz(20);
       scene.insertBefore(el("p", "prose", copy.gift.line), actions);
       scene.insertBefore(el("p", "sub", copy.gift.sub), actions);
-      actions.append(button(copy.gift.button, () => show("secret")));
+      actions.append(button(copy.gift.button, () => show("cake")));
     };
 
     const slideButton = button(copy.gift.slide, open);
@@ -408,6 +427,53 @@ const builders = {
     };
     ribbon.addEventListener("pointerup", release);
     ribbon.addEventListener("pointercancel", release);
+  },
+
+  cake(scene) {
+    scene.classList.add("center");
+    const hint = el("p", "hint", copy.cake.hint);
+    const wrap = el("div", "cake-wrap");
+    wrap.innerHTML = `
+      <div class="cake-glow" aria-hidden="true"></div>
+      <div class="stand" aria-hidden="true"></div>
+      <div class="tier base" aria-hidden="true"><i class="pearls"></i></div>
+      <div class="tier top" aria-hidden="true"><i class="pearls"></i></div>`;
+    const candles = el("div", "candles");
+    wrap.append(candles);
+    const actions = el("div", "actions");
+    const next = button(copy.cake.button, () => show("secret"));
+    next.hidden = true;
+    actions.append(next);
+    scene.append(
+      el("p", "kicker", copy.cake.kicker),
+      el("h2", "story-title", copy.cake.title),
+      hint,
+      wrap,
+      actions,
+    );
+
+    let lit = copy.cake.candles;
+    for (let i = 0; i < copy.cake.candles; i += 1) {
+      const candle = el("button", "candle");
+      candle.type = "button";
+      candle.setAttribute("aria-label", "Mombatti bujhao");
+      candle.innerHTML = `<i class="flame"></i><i class="smoke"></i><i class="stick"></i>`;
+      candle.addEventListener("click", () => {
+        if (candle.classList.contains("out")) return;
+        candle.classList.add("out");
+        buzz(15);
+        const r = candle.getBoundingClientRect();
+        rain.burst(r.left + r.width / 2, r.top + r.height * 0.3, 8);
+        lit -= 1;
+        if (lit > 0) return;
+        wrap.classList.add("dark");
+        hint.textContent = copy.cake.done;
+        const c = wrap.getBoundingClientRect();
+        window.setTimeout(() => rain.burst(c.left + c.width / 2, c.top + c.height * 0.4, 30), 250);
+        next.hidden = false;
+      });
+      candles.append(candle);
+    }
   },
 
   secret(scene) {
